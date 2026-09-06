@@ -765,10 +765,11 @@ ON CONFLICT (code) DO UPDATE SET
 -- Re-asserted on every run, like the audience columns above, so this file remains the
 -- statement of intended defaults.
 --
--- Public is the site-wide set a visitor may need before they have an account: the cookie
--- banner links to the Privacy Policy on a first visit, so that one cannot sit behind
--- sign-in. The contracts are not public. Each is still shown to the party it binds at the
--- moment it binds them, and legal_applicable_documents() ignores is_public entirely, so
--- targeting, acknowledgement and change-notification are unaffected by this switch.
-UPDATE legal_documents SET is_public = TRUE  WHERE code IN ('01','02','04','05','06','07');
-UPDATE legal_documents SET is_public = FALSE WHERE code IN ('03','08','09','10','11','12','13','14');
+-- Every document is readable on the public policy page. The only thing that varies by reader
+-- is WHICH Customer T&C they get: region_scope 'in' or 'row' means a customer sees the edition
+-- that binds them and never both. Everything else is region_scope 'all' and shown to everyone.
+--
+-- is_public governs public READING only. It is not the targeting mechanism: audience and
+-- region decide what a person is asked to acknowledge and notified about, and
+-- legal_applicable_documents() ignores is_public entirely.
+UPDATE legal_documents SET is_public = TRUE;
