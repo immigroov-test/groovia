@@ -1575,7 +1575,8 @@ def get_booking_admin_detail(booking_id: str) -> Optional[dict[str, Any]]:
         try:
             pr = (_supabase.table("booking_pricing")
                   .select("customer_currency, mentor_currency, gross_customer, fee_pct, "
-                          "fee_amount, net_customer, net_mentor")
+                          "fee_amount, net_customer, net_mentor, subtotal, platform_fee_pct, "
+                          "platform_fee, tax_pct, tax_amount, commission_pct, commission_amount")
                   .eq("booking_id", booking_id).limit(1).execute())
             b["pricing"] = pr.data[0] if pr.data else None
         except Exception:
