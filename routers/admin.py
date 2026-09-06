@@ -333,6 +333,26 @@ def booking_detail(booking_id: str, user: AuthUser = Depends(require_admin)):
     return detail
 
 
+class BookingCommissionBody(BaseModel):
+    pct: float
+
+
+@router.post("/bookings/{booking_id}/commission")
+def set_booking_commission(booking_id: str, body: BookingCommissionBody,
+                           user: AuthUser = Depends(require_admin)):
+    """Change the mentor commission on one booking. Groundwork for referrals, where a referred
+    booking carries a different rate from the mentor's standing one. Refused once the payout is
+    paid: at that point the split is history, not a setting."""
+    try:
+        return db.set_booking_commission(booking_id, body.pct, actor=user.email or "admin")
+    except Exception as e:
+        msg = str(e)
+        if "between 0 and 100" in msg or "already paid" in msg or "predates" in msg or "No pricing" in msg:
+            raise HTTPException(status_code=409, detail=msg)
+        logger.exception("set_booking_commission failed booking=%s", booking_id)
+        raise HTTPException(status_code=500, detail="Could not update the commission")
+
+
 @router.get("/no-show-strikes")
 def no_show_strikes(user: AuthUser = Depends(require_admin)):
     """Mentors with accrued no-show strikes - the ops queue."""

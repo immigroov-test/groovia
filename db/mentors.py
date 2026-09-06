@@ -1589,6 +1589,15 @@ def get_booking_admin_detail(booking_id: str) -> Optional[dict[str, Any]]:
         return None
 
 
+def set_booking_commission(booking_id: str, pct: float, actor: str = "admin") -> dict[str, Any]:
+    """Admin override of the mentor commission on ONE booking. Only the mentor's side of the
+    split moves: what the customer paid is already charged and is not revised here."""
+    res = _supabase.rpc("admin_set_booking_commission", {
+        "p_booking_id": booking_id, "p_pct": pct, "p_actor": actor,
+    }).execute()
+    return res.data or {}
+
+
 def list_mentors_with_strikes() -> list[dict[str, Any]]:
     """Mentors who have accrued no-show strikes - the admin ops queue."""
     try:
