@@ -496,6 +496,8 @@ class BookSessionBody(BaseModel):
     specific_availability_id: Optional[str] = None
     idempotency_key: Optional[str] = None
     referral_code: Optional[str] = None
+    # Set by the /r/<slug> landing route when the visitor arrived through a promoter's link.
+    referral_token: Optional[str] = None
     # Consent Flow Spec Section 4: this free/mock-confirm path is the other half of
     # checkout (routers/payments.py's /reserve is the paid half) - the same checkbox in
     # the widget gates both, so both must record the same consent bundle.
@@ -572,6 +574,11 @@ def book_session(
                 # Mock/free path: no charge + no pricing rows, so this records attribution only
                 # (no commission is generated). The paid path applies the discount in reserve.
                 db.attribute_booking_referral(booking_id, body.referral_code)
+            # Step 2 of the referral flow: the code above, or a link click on this browser,
+            # becomes the customer's attribution record. Called on every booking, because an
+            # unexpired record from an earlier visit still counts when this checkout carries
+            # neither a code nor a token.
+            db.resolve_booking_attribution(booking_id, body.referral_token)
             db.set_booking_phone(booking_id, body.phone)
             db.set_booking_notes(booking_id, body.notes)   # BUG-113: persist for email + dashboard
             if candidate_id:

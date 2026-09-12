@@ -75,6 +75,60 @@ def attribute_booking_referral(booking_id: str, code: str) -> None:
         logger.exception("attribute_booking_referral failed booking=%s", booking_id)
 
 
+def record_referral_click(slug: str, session_token: str) -> dict[str, Any]:
+    """Log a click on a promoter's link against a browser session token. Returns
+    {ok, affiliate_id?, reason?}. An unknown slug is a normal outcome, not an error: old links
+    stay in circulation long after a code is retired."""
+    res = _supabase.rpc("record_referral_click", {
+        "p_slug": slug, "p_session_token": session_token,
+    }).execute()
+    return res.data or {"ok": False, "reason": "error"}
+
+
+def resolve_booking_attribution(booking_id: str, session_token: Optional[str] = None) -> dict[str, Any]:
+    """Turn a link click and/or a code into the customer's attribution record, then stamp the
+    booking so the commission engine can see it. Best-effort by design: attribution must never
+    fail a booking the customer has already paid for."""
+    try:
+        res = _supabase.rpc("resolve_booking_attribution", {
+            "p_booking_id": booking_id, "p_session_token": session_token,
+        }).execute()
+        return res.data or {}
+    except Exception:
+        logger.exception("resolve_booking_attribution failed booking=%s", booking_id)
+        return {}
+
+
+def admin_fraud_queue(include_resolved: bool = False) -> list[dict[str, Any]]:
+    """Open fraud flags with the affiliate history and booking attached (admin review queue)."""
+    res = _supabase.rpc("admin_fraud_queue", {"p_include_resolved": include_resolved}).execute()
+    return res.data or []
+
+
+def admin_resolve_fraud_flag(
+    flag_id: str, decision: str, note: Optional[str] = None, admin_id: Optional[str] = None
+) -> dict[str, Any]:
+    """Record one of the three review decisions. Also settles the commission: reject_and_hold
+    rejects it, either approval releases it once no other flag on it is still open."""
+    res = _supabase.rpc("admin_resolve_fraud_flag", {
+        "p_flag_id": flag_id, "p_decision": decision, "p_note": note, "p_admin": admin_id,
+    }).execute()
+    return res.data or {}
+
+
+def admin_payout_batches() -> list[dict[str, Any]]:
+    """Payout batches with their commission count and total."""
+    res = _supabase.rpc("admin_payout_batches", {}).execute()
+    return res.data or []
+
+
+def build_payout_batch(batch_date: str) -> dict[str, Any]:
+    """Sweep approved, eligible, unflagged commissions into the batch for this date.
+    The RPC rejects any date that is not the 1st or the 15th."""
+    res = _supabase.rpc("build_payout_batch", {"p_batch_date": batch_date}).execute()
+    return res.data or {}
+
+
 def admin_referrals_overview() -> list[dict[str, Any]]:
     """One row per affiliate with code + referral + money aggregates (admin Referrals tab)."""
     res = _supabase.rpc("admin_referrals_overview", {}).execute()

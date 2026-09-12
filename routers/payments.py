@@ -38,6 +38,8 @@ class ReserveBody(BaseModel):
     answers: list[BookingAnswerItem] = []
     specific_availability_id: Optional[str] = None
     referral_code: Optional[str] = None
+    # Set by the /r/<slug> landing route when the visitor arrived through a promoter's link.
+    referral_token: Optional[str] = None
     # Consent Flow Spec Section 4: the bundled checkbox (Customer T&C + Privacy Policy +
     # Payment Terms) plus the distinct Refund & Cancellation Policy link, both required
     # at this exact step - "this checkpoint must exist even without an account."
@@ -99,6 +101,10 @@ def reserve(request: Request, body: ReserveBody,
                 db.set_profile_phone_if_empty(candidate_id, body.phone)
         except Exception:
             logger.warning("could not save phone/notes for reserved booking %s", result.get("booking_id"))
+        # Step 2 of the referral flow. reserve_booking has already validated any code and applied
+        # its discount; this turns that, or a link click on this browser, into the customer's
+        # attribution record and stamps the booking for the commission engine.
+        db.resolve_booking_attribution(result["booking_id"], body.referral_token)
         # Consent Flow Spec Section 4: log against booking_id the moment one exists -
         # "the only evidentiary record if a guest disputes later." Country is resolved
         # server-side via the same trusted edge-geo signal PPP pricing already uses,
